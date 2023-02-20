@@ -3,7 +3,7 @@ import User from "./model.js";
 import createHttpError from "http-errors";
 import multer from "multer";
 
-export const usersRouter = express.Router();
+const usersRouter = express.Router();
 
 const upload = multer({ dest: "uploads/" });
 
@@ -110,3 +110,5 @@ usersRouter.post(
         }
     }
 );
+
+export default usersRouter;
