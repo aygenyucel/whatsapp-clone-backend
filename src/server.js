@@ -2,12 +2,13 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import {
-  badRequestHandler,
-  forbiddenErrorHandler,
-  genericErrorHandler,
-  notFoundHandler,
+    badRequestHandler,
+    forbiddenErrorHandler,
+    genericErrorHandler,
+    notFoundHandler,
 } from "./errorHandlers.js";
 import listEndpoints from "express-list-endpoints";
+import usersRouter from "./api/Users/endpoint.js";
 import chatsRouter from "./api/chats/index.js";
 import messagesRouter from "./api/messages/index.js";
 
@@ -19,25 +20,26 @@ const port = process.env.PORT || 3001;
 const whitelist = [process.env.FE_DEV_URL, process.env.FE_PROD_URL];
 
 server.use(
-  cors({
-    origin: (origin, corsNext) => {
-      if (!origin || whitelist.indexOf(origin) !== -1) {
-        corsNext(null, true);
-      } else {
-        corsNext(
-          createHttpError(
-            400,
-            `Cors Error! Your origin ${origin} is not in the list!`
-          )
-        );
-      }
-    },
-  })
+    cors({
+        origin: (origin, corsNext) => {
+            if (!origin || whitelist.indexOf(origin) !== -1) {
+                corsNext(null, true);
+            } else {
+                corsNext(
+                    createHttpError(
+                        400,
+                        `Cors Error! Your origin ${origin} is not in the list!`
+                    )
+                );
+            }
+        },
+    })
 );
 
 server.use(express.json());
 
 // ************************** ENDPOINTS *****************************
+server.use("/users", usersRouter);
 
 server.use("/chats", chatsRouter);
 server.use("/messages", messagesRouter);
@@ -54,9 +56,9 @@ mongoose.set("strictQuery", false);
 mongoose.connect(process.env.MONGO_URL);
 
 mongoose.connection.on("connected", () => {
-  console.log("Successfully connected to Mongo!");
-  server.listen(port, () => {
-    console.table(listEndpoints(server));
-    console.log("Server is running on port:", port);
-  });
+    console.log("Successfully connected to Mongo!");
+    server.listen(port, () => {
+        console.table(listEndpoints(server));
+        console.log("Server is running on port:", port);
+    });
 });
