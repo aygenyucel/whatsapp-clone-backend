@@ -8,6 +8,8 @@ import {
   notFoundHandler,
 } from "./errorHandlers.js";
 import listEndpoints from "express-list-endpoints";
+import chatsRouter from "./api/chats/index.js";
+import messagesRouter from "./api/messages/index.js";
 
 const server = express();
 const port = process.env.PORT || 3001;
@@ -37,6 +39,8 @@ server.use(express.json());
 
 // ************************** ENDPOINTS *****************************
 
+server.use("/chats", chatsRouter);
+server.use("/messages", messagesRouter);
 // ************************** ERROR HANDLERS ************************
 server.use(notFoundHandler);
 server.use(badRequestHandler);
