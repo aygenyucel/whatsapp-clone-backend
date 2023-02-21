@@ -2,7 +2,11 @@ import express from "express";
 import User from "./model.js";
 import createHttpError from "http-errors";
 import multer from "multer";
-import { createAccessToken } from "../lib/jwt-tools.js";
+import {
+  createAccessToken,
+  createTokens,
+  verifyRefreshAndCreateNewTokens,
+} from "../lib/jwt-tools.js";
 
 const usersRouter = express.Router();
 
@@ -58,6 +62,14 @@ usersRouter.put("/:id", async (req, res, next) => {
   }
 });
 
+//Logout. If implemented with cookies, should set an empty cookie. Otherwise it should just remove the refresh token from the DB.
+usersRouter.delete("/session", async (req, res, next) => {
+  try {
+  } catch (error) {
+    next(error);
+  }
+});
+
 //delete user by id
 usersRouter.delete("/:id", async (req, res, next) => {
   try {
@@ -78,12 +90,12 @@ usersRouter.post("/session", async (req, res, next) => {
     const { email, password } = req.body;
 
     const user = await User.checkCredentials(email, password);
-    console.log("user:", user);
 
     if (user) {
-      const payload = { _id: user._id };
-      const accessToken = await createAccessToken(payload);
-      res.send({ accessToken });
+      // const payload = { _id: user._id };
+      // const accessToken = await createAccessToken(payload);
+      const { accessToken, refreshToken } = await createTokens(user);
+      res.send({ accessToken, refreshToken });
     } else {
       next(createHttpError(404, "Credentials are not ok!"));
     }
@@ -92,7 +104,22 @@ usersRouter.post("/session", async (req, res, next) => {
   }
 });
 
-//user registiration
+//Refreshed. EXTRA: instead than returning tokens in the response body, handle them using cookies.
+usersRouter.post("/session/refresh", async (req, res, next) => {
+  try {
+    const { currentRefreshToken } = req.body;
+    //check validity of this token
+    const { accessToken, refreshToken } = await verifyRefreshAndCreateNewTokens(
+      currentRefreshToken
+    );
+
+    res.send({ accessToken, refreshToken });
+  } catch (error) {
+    next(error);
+  }
+});
+
+//user registiration, Created new user. EXTRA: instead than returning tokens in the response body, handle them using cookies.
 usersRouter.post("/account", async (req, res, next) => {
   try {
     const { email } = req.body;

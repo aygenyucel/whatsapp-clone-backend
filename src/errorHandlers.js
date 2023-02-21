@@ -39,7 +39,7 @@ export const forbiddenErrorHandler = (err, req, res, next) => {
 export const conflictErrorHandler = (err, req, res, next) => {
   if (err.status === 409) {
     res.status(409).send({ message: err.message });
-  }
+  } else next();
 };
 
 export const genericErrorHandler = (err, req, res, next) => {
