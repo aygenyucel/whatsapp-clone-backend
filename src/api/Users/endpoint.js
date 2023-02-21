@@ -73,7 +73,11 @@ usersRouter.delete("/session", async (req, res, next) => {
       $unset: { refreshToken: currentRefreshToken },
     });
 
-    res.send(user);
+    if (user) {
+      res.status(204).send();
+    } else {
+      next(createHttpError(404, `User with id ${_id} not found!`));
+    }
   } catch (error) {
     next(error);
   }

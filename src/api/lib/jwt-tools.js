@@ -68,7 +68,7 @@ export const verifyRefreshAndCreateNewTokens = async (currentRefreshToken) => {
       const { accessToken, refreshToken } = await createTokens(user);
       return { accessToken, refreshToken };
     } else {
-      throw createHttpError(404, `Refresh token not valid!`);
+      throw createHttpError(401, `Refresh token not valid!`);
     }
   } else {
     throw createHttpError(404, `User with id ${_id} not found!`);
