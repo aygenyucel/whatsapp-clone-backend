@@ -45,7 +45,7 @@ server.use("/users", usersRouter);
 
 server.use("/chats", chatsRouter);
 server.use("/messages", messagesRouter);
-// ************************** ERROR HANDLERS ************************
+//************************** ERROR HANDLERS ************************
 server.use(notFoundHandler);
 server.use(badRequestHandler);
 server.use(forbiddenErrorHandler);

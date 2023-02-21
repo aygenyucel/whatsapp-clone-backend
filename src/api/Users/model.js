@@ -12,6 +12,7 @@ const userSchema = new Schema({
     default: "https://via.placeholder.com/200x200",
   },
   password: { type: String, required: false },
+  refreshToken: { type: String, required: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
@@ -26,6 +27,18 @@ userSchema.pre("save", async function (next) {
   }
   next();
 });
+
+userSchema.methods.toJSON = function () {
+  const userDocument = this;
+  const user = userDocument.toObject();
+
+  delete user.password;
+  delete user.createdAt;
+  delete user.updatedAt;
+  delete user.__v;
+  delete user.refreshToken;
+  return user;
+};
 
 userSchema.static("checkCredentials", async function (email, password) {
   const user = await this.findOne({ email });
