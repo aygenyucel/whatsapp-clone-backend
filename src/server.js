@@ -2,17 +2,22 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import {
-  badRequestHandler,
-  conflictErrorHandler,
-  forbiddenErrorHandler,
-  genericErrorHandler,
-  notFoundHandler,
-  unauthorizedErrorHandler,
+    badRequestHandler,
+    conflictErrorHandler,
+    forbiddenErrorHandler,
+    genericErrorHandler,
+    notFoundHandler,
+    unauthorizedErrorHandler,
 } from "./errorHandlers.js";
 import listEndpoints from "express-list-endpoints";
 import chatsRouter from "./api/chats/index.js";
 import messagesRouter from "./api/messages/index.js";
 import usersRouter from "./api/Users/endpoint.js";
+import passport from "passport";
+import googleAuth from "./passport/google.js";
+import dotenv from "dotenv";
+import session from "express-session";
+dotenv.config();
 
 const server = express();
 const port = process.env.PORT || 3001;
@@ -22,23 +27,38 @@ const port = process.env.PORT || 3001;
 const whitelist = [process.env.FE_DEV_URL, process.env.FE_PROD_URL];
 
 server.use(
-  cors({
-    origin: (origin, corsNext) => {
-      if (!origin || whitelist.indexOf(origin) !== -1) {
-        corsNext(null, true);
-      } else {
-        corsNext(
-          createHttpError(
-            400,
-            `Cors Error! Your origin ${origin} is not in the list!`
-          )
-        );
-      }
-    },
-  })
+    cors({
+        origin: (origin, corsNext) => {
+            if (!origin || whitelist.indexOf(origin) !== -1) {
+                corsNext(null, true);
+            } else {
+                corsNext(
+                    createHttpError(
+                        400,
+                        `Cors Error! Your origin ${origin} is not in the list!`
+                    )
+                );
+            }
+        },
+    })
 );
 
+if (!process.env.SESSION_SECRET) {
+    throw new Error("Please set the SESSION_SECRET environment variable");
+}
+
 server.use(express.json());
+server.use(
+    session({
+        secret: process.env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+    })
+);
+
+server.use(passport.initialize());
+server.use(passport.session());
+googleAuth(passport);
 
 // ************************** ENDPOINTS *****************************
 server.use("/users", usersRouter);
@@ -60,9 +80,9 @@ mongoose.set("strictQuery", false);
 mongoose.connect(process.env.MONGO_URL);
 
 mongoose.connection.on("connected", () => {
-  console.log("Successfully connected to Mongo!");
-  server.listen(port, () => {
-    console.table(listEndpoints(server));
-    console.log("Server is running on port:", port);
-  });
+    console.log("Successfully connected to Mongo!");
+    server.listen(port, () => {
+        console.table(listEndpoints(server));
+        console.log("Server is running on port:", port);
+    });
 });
