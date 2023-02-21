@@ -6,6 +6,7 @@ import {
   createAccessToken,
   createTokens,
   verifyRefreshAndCreateNewTokens,
+  verifyRefreshToken,
 } from "../lib/jwt-tools.js";
 
 const usersRouter = express.Router();
@@ -65,6 +66,14 @@ usersRouter.put("/:id", async (req, res, next) => {
 //Logout. If implemented with cookies, should set an empty cookie. Otherwise it should just remove the refresh token from the DB.
 usersRouter.delete("/session", async (req, res, next) => {
   try {
+    const currentRefreshToken = req.body.currentRefreshToken;
+    const { _id } = await verifyRefreshToken(currentRefreshToken);
+
+    const user = await User.findByIdAndUpdate(_id, {
+      $unset: { refreshToken: currentRefreshToken },
+    });
+
+    res.send(user);
   } catch (error) {
     next(error);
   }
