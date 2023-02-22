@@ -23,6 +23,6 @@ export const socketHandler = (socket) => {
         console.log(
             `received message from ${clientId}: ${data.message.content.text}`
         );
-        socket.emit("newMessage", data.message);
+        socket.broadcast.emit("newMessage", data.message);
     });
 };
