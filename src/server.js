@@ -17,10 +17,19 @@ import passport from "passport";
 import googleAuth from "./passport/google.js";
 import dotenv from "dotenv";
 import session from "express-session";
+import { Server } from "socket.io";
+import { createServer } from "http";
+import socketHandler from "./socket/index.js";
 dotenv.config();
 
 const server = express();
 const port = process.env.PORT || 3001;
+
+// Socket io
+const httpServer = createServer(server);
+const io = new Server(httpServer);
+
+io.on("connection", socketHandler);
 
 // ************************* MIDDLEWARES ****************************
 
