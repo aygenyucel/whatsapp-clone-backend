@@ -18,18 +18,28 @@ import googleAuth from "./passport/google.js";
 import dotenv from "dotenv";
 import session from "express-session";
 import { Server } from "socket.io";
-import { createServer } from "http";
-import socketHandler from "./socket/index.js";
+import http from "http";
+import { socketHandler } from "./socket/index.js";
+import createHttpError from "http-errors";
 dotenv.config();
 
 const server = express();
+const app = http.createServer(server);
+
 const port = process.env.PORT || 3001;
 
-// Socket io
-const httpServer = createServer(server);
-const io = new Server(httpServer);
+//socket io, no long polling
+const io = new Server(app, {
+    transports: ["websocket"],
+    //eio4
+    origins: [process.env.FE_DEV_URL, process.env.FE_PROD_URL],
+});
 
 io.on("connection", socketHandler);
+//on error
+io.on("error", (err) => {
+    console.log(err);
+});
 
 // ************************* MIDDLEWARES ****************************
 
@@ -90,7 +100,7 @@ mongoose.connect(process.env.MONGO_URL);
 
 mongoose.connection.on("connected", () => {
     console.log("Successfully connected to Mongo!");
-    server.listen(port, () => {
+    app.listen(port, () => {
         console.table(listEndpoints(server));
         console.log("Server is running on port:", port);
     });
