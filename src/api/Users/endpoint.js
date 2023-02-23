@@ -3,10 +3,11 @@ import User from "./model.js";
 import createHttpError from "http-errors";
 import multer from "multer";
 import {
-  createAccessToken,
-  createTokens,
-  verifyRefreshAndCreateNewTokens,
-  verifyRefreshToken,
+    createAccessToken,
+    createTokens,
+    verifyAccessToken,
+    verifyRefreshAndCreateNewTokens,
+    verifyRefreshToken,
 } from "../lib/jwt-tools.js";
 import passport from "passport";
 import { JWTAuthMiddleware } from "../lib/auth/jwtAuth.js";
@@ -24,6 +25,7 @@ usersRouter.post("/", async (req, res, next) => {
     next(error);
   }
 });
+
 //get all users
 usersRouter.get("/", async (req, res, next) => {
   try {
@@ -47,6 +49,7 @@ usersRouter.get("/:id", async (req, res, next) => {
   }
 });
 
+
 //update user by id
 usersRouter.put("/:id", async (req, res, next) => {
   //
@@ -64,6 +67,7 @@ usersRouter.put("/:id", async (req, res, next) => {
     next(error);
   }
 });
+
 
 //Logout. If implemented with cookies, should set an empty cookie. Otherwise it should just remove the refresh token from the DB.
 usersRouter.delete("/session", async (req, res, next) => {
@@ -180,6 +184,7 @@ usersRouter.post("/account", async (req, res, next) => {
 
 //upload avatar
 usersRouter.post(
+
   "/:id/uploadAvatar",
   upload.single("avatar"),
   async (req, res, next) => {
@@ -190,6 +195,40 @@ usersRouter.post(
         {
           runValidators: true,
           new: true,
+
+    "/uploadAvatar",
+    upload.single("avatar"),
+    async (req, res, next) => {
+        //verify access token
+        try {
+            const accessToken = req.headers.authorization.split(" ")[1];
+            const { _id } = await verifyAccessToken(accessToken);
+
+            if (_id) {
+                const modifiedUser = await User.findByIdAndUpdate(
+                    _id,
+                    { avatar: req.file.path },
+                    {
+                        runValidators: true,
+                        new: true,
+                    }
+                );
+                if (modifiedUser) {
+                    res.send(modifiedUser);
+                } else {
+                    next(
+                        createHttpError(404, `User with id ${_id} not found!`)
+                    );
+                }
+            } else {
+                next(createHttpError(404, `User with id ${_id} not found!`));
+            }
+
+            //find user with
+        } catch (e) {
+            if (e.name === "JsonWebTokenError") {
+                next(createHttpError(401, "Access token is not valid!"));
+            } else next(e);
         }
       );
       if (modifiedUser) {
