@@ -5,6 +5,7 @@ import multer from "multer";
 import {
     createAccessToken,
     createTokens,
+    verifyAccessToken,
     verifyRefreshAndCreateNewTokens,
     verifyRefreshToken,
 } from "../lib/jwt-tools.js";
@@ -14,15 +15,6 @@ const usersRouter = express.Router();
 
 const upload = multer({ dest: "uploads/" });
 
-usersRouter.post("/", async (req, res, next) => {
-    try {
-        const newUser = new User(req.body);
-        const { _id } = await newUser.save();
-        res.status(201).send({ _id });
-    } catch (error) {
-        next(error);
-    }
-});
 //get all users
 usersRouter.get("/", async (req, res, next) => {
     try {
@@ -48,30 +40,6 @@ usersRouter.get("/:id", async (req, res, next) => {
     }
 });
 
-//update user by id
-usersRouter.put("/:id", async (req, res, next) => {
-    //
-    try {
-        const modifiedUser = await User.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            {
-                runValidators: true,
-                new: true,
-            }
-        );
-        if (modifiedUser) {
-            res.send(modifiedUser);
-        } else {
-            next(
-                createHttpError(404, `User with id ${req.params.id} not found!`)
-            );
-        }
-    } catch (error) {
-        next(error);
-    }
-});
-
 //Logout. If implemented with cookies, should set an empty cookie. Otherwise it should just remove the refresh token from the DB.
 usersRouter.delete("/session", async (req, res, next) => {
     try {
@@ -86,22 +54,6 @@ usersRouter.delete("/session", async (req, res, next) => {
             res.status(204).send();
         } else {
             next(createHttpError(404, `User with id ${_id} not found!`));
-        }
-    } catch (error) {
-        next(error);
-    }
-});
-
-//delete user by id
-usersRouter.delete("/:id", async (req, res, next) => {
-    try {
-        const user = await User.findByIdAndDelete(req.params.id);
-        if (user) {
-            res.status(204).send();
-        } else {
-            next(
-                createHttpError(404, `User with id ${req.params.id} not found!`)
-            );
         }
     } catch (error) {
         next(error);
@@ -190,30 +142,39 @@ usersRouter.post("/account", async (req, res, next) => {
 
 //upload avatar
 usersRouter.post(
-    "/:id/uploadAvatar",
+    "/uploadAvatar",
     upload.single("avatar"),
     async (req, res, next) => {
+        //verify access token
         try {
-            const modifiedUser = await User.findByIdAndUpdate(
-                req.params.id,
-                { avatar: req.file.path },
-                {
-                    runValidators: true,
-                    new: true,
-                }
-            );
-            if (modifiedUser) {
-                res.send(modifiedUser);
-            } else {
-                next(
-                    createHttpError(
-                        404,
-                        `User with id ${req.params.id} not found!`
-                    )
+            const accessToken = req.headers.authorization.split(" ")[1];
+            const { _id } = await verifyAccessToken(accessToken);
+
+            if (_id) {
+                const modifiedUser = await User.findByIdAndUpdate(
+                    _id,
+                    { avatar: req.file.path },
+                    {
+                        runValidators: true,
+                        new: true,
+                    }
                 );
+                if (modifiedUser) {
+                    res.send(modifiedUser);
+                } else {
+                    next(
+                        createHttpError(404, `User with id ${_id} not found!`)
+                    );
+                }
+            } else {
+                next(createHttpError(404, `User with id ${_id} not found!`));
             }
-        } catch (error) {
-            next(error);
+
+            //find user with
+        } catch (e) {
+            if (e.name === "JsonWebTokenError") {
+                next(createHttpError(401, "Access token is not valid!"));
+            } else next(e);
         }
     }
 );
