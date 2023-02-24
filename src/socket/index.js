@@ -57,7 +57,10 @@ export const socketHandler = (socket) => {
         );
 
         if (!accessToken || !refreshToken) {
-            socket.emit("error", "You are not authorized to send messages");
+            socket.emit(
+                "messageError",
+                "You are not authorized to send messages"
+            );
             return;
         }
 
@@ -102,7 +105,7 @@ export const socketHandler = (socket) => {
                     )
                     .catch((err) => {
                         socket.emit(
-                            "error",
+                            "messageError",
                             "You are not authorized to send messages"
                         );
                     });
