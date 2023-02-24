@@ -4,13 +4,15 @@ import {
     verifyRefreshAndCreateNewTokens,
 } from "../api/lib/jwt-tools.js";
 import Message from "../api/messages/model.js";
+import User from "../api/Users/model.js";
 
 //todo use handshake to verify access token / refresh token
 
-const saveMessage = (text, user) =>
+const saveMessage = (text, user, receiver) =>
     new Promise((resolve, reject) => {
         const message = new Message({
             sender: user._id,
+            receiver: receiver._id,
             content: {
                 text,
             },
@@ -37,25 +39,7 @@ export const socketHandler = (socket) => {
     const clientId = socket.id;
     console.log("Client connected: " + clientId);
 
-    socket.emit("welcome", "Welcome to WhatsApp");
-
-    socket.on("disconnect", () => {
-        console.log("Client disconnected: " + clientId);
-    });
-
-    //on error
-    socket.on("error", (err) => {
-        console.log("received error from client:", clientId);
-        console.log(err);
-    });
-
-    //chat handler
-    socket.on("sendMessage", (data) => {
-        const { accessToken, refreshToken } = data;
-        console.log(
-            `received message from ${clientId}: ${data.message.content.text}`
-        );
-
+    socket.on("auth", ({ accessToken, refreshToken }) => {
         if (!accessToken || !refreshToken) {
             socket.emit(
                 "messageError",
@@ -68,14 +52,8 @@ export const socketHandler = (socket) => {
         verifyAccessToken(accessToken)
             .then((user) => {
                 //Access token is valid
-
-                saveMessage(data.message.content.text, user).then(
-                    (returnMessage) => {
-                        socket.broadcast.emit("newMessage", {
-                            message: returnMessage,
-                        });
-                    }
-                );
+                onlineUsers.push({ id: user._id, socketId: clientId });
+                console.log(onlineUsers);
             })
             .catch((err) => {
                 //verify refresh token
@@ -94,13 +72,11 @@ export const socketHandler = (socket) => {
                                 refreshToken: newRefreshToken,
                             });
 
-                            saveMessage(data.message.content.text, user).then(
-                                (returnMessage) => {
-                                    socket.broadcast.emit("newMessage", {
-                                        message: returnMessage,
-                                    });
-                                }
-                            );
+                            onlineUsers.push({
+                                id: user._id,
+                                socketId: clientId,
+                            });
+                            socket.emit("welcome", "You have been authorized");
                         }
                     )
                     .catch((err) => {
@@ -110,7 +86,69 @@ export const socketHandler = (socket) => {
                         );
                     });
             });
+    });
 
-        socket.broadcast.emit("newMessage", data.message);
+    socket.on("disconnect", () => {
+        console.log("Client disconnected: " + clientId);
+    });
+
+    //on error
+    socket.on("error", (err) => {
+        console.log("received error from client:", clientId);
+        console.log(err);
+    });
+
+    //chat handler
+    socket.on("sendMessage", (data) => {
+        const { text, receiverId, senderId } = data;
+
+        //get sender information
+        if (!senderId || !receiverId)
+            return socket.emit("messageError", "Something went wrong");
+
+        //ifsender is not online
+        if (!onlineUsers.find((user) => user.id === senderId)) {
+            return socket.emit("messageError", "You are not authorized");
+        }
+
+        User.findById(senderId)
+            .then(async (user) => {
+                //get receiver
+                const receiver = await User.findById(receiverId);
+                if (!receiver) {
+                    return socket.emit("messageError", "Something went wrong");
+                }
+
+                delete receiver.password;
+                delete receiver.refreshToken;
+                delete receiver.accessToken;
+                delete user.password;
+                delete user.refreshToken;
+                delete user.accessToken;
+                saveMessage(text, user, receiver)
+                    .then((message) => {
+                        //send message to receiver
+                        const receiverSocketId = onlineUsers.find(
+                            (user) => user.id === receiverId
+                        ).socketId;
+                        delete message.sender;
+                        delete message.receiver;
+                        const messageToSend = {
+                            message,
+                            receiver,
+                            sender: user,
+                        };
+                        socket
+                            .to(receiverSocketId)
+                            .emit("newMessage", messageToSend);
+                    })
+                    .catch((err) => {
+                        socket.emit("messageError", "Something went wrong");
+                    });
+            })
+            .catch((err) => {
+                console.log(err);
+                socket.emit("messageError", "Something went wrong");
+            });
     });
 };
