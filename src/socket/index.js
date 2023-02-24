@@ -12,7 +12,7 @@ const saveMessage = (text, user, receiver) =>
     new Promise((resolve, reject) => {
         const message = new Message({
             sender: user._id,
-            receiver,
+            receiver: receiver._id,
             content: {
                 text,
             },
@@ -38,8 +38,6 @@ const saveMessage = (text, user, receiver) =>
 export const socketHandler = (socket) => {
     const clientId = socket.id;
     console.log("Client connected: " + clientId);
-
-    socket.emit("welcome", "Welcome to WhatsApp");
 
     socket.on("auth", ({ accessToken, refreshToken }) => {
         if (!accessToken || !refreshToken) {
@@ -78,7 +76,7 @@ export const socketHandler = (socket) => {
                                 id: user._id,
                                 socketId: clientId,
                             });
-                            console.log(onlineUsers);
+                            socket.emit("welcome", "You have been authorized");
                         }
                     )
                     .catch((err) => {
@@ -105,14 +103,29 @@ export const socketHandler = (socket) => {
         const { text, receiverId, senderId } = data;
 
         //get sender information
+        if (!senderId || !receiverId)
+            return socket.emit("messageError", "Something went wrong");
+
+        //ifsender is not online
+        if (!onlineUsers.find((user) => user.id === senderId)) {
+            return socket.emit("messageError", "You are not authorized");
+        }
 
         User.findById(senderId)
-            .then((user) => {
-                //save message
+            .then(async (user) => {
+                //get receiver
+                const receiver = await User.findById(receiverId);
+                if (!receiver) {
+                    return socket.emit("messageError", "Something went wrong");
+                }
+
+                delete receiver.password;
+                delete receiver.refreshToken;
+                delete receiver.accessToken;
                 delete user.password;
                 delete user.refreshToken;
                 delete user.accessToken;
-                saveMessage(text, user, receiverId)
+                saveMessage(text, user, receiver)
                     .then((message) => {
                         //send message to receiver
                         const receiverSocketId = onlineUsers.find(
@@ -122,9 +135,7 @@ export const socketHandler = (socket) => {
                         delete message.receiver;
                         const messageToSend = {
                             message,
-                            receiver: {
-                                _id: receiverId,
-                            },
+                            receiver,
                             sender: user,
                         };
                         socket
