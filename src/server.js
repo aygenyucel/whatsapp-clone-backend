@@ -30,9 +30,7 @@ const port = process.env.PORT || 3001;
 
 //socket io, no long polling
 const io = new Server(app, {
-    transports: ["websocket"],
-    //eio4
-    origins: [process.env.FE_DEV_URL, process.env.FE_PROD_URL],
+    transports: ["websocket"]
 });
 
 io.on("connection", socketHandler);
@@ -42,6 +40,23 @@ io.on("error", (err) => {
 });
 
 // ************************* MIDDLEWARES ****************************
+
+if (!process.env.SESSION_SECRET) {
+    throw new Error("Please set the SESSION_SECRET environment variable");
+}
+
+server.use(express.json());
+server.use(
+    session({
+        secret: process.env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+    })
+);
+
+server.use(passport.initialize());
+server.use(passport.session());
+googleAuth(passport);
 
 const whitelist = [process.env.FE_DEV_URL, process.env.FE_PROD_URL];
 
@@ -62,22 +77,6 @@ server.use(
     })
 );
 
-if (!process.env.SESSION_SECRET) {
-    throw new Error("Please set the SESSION_SECRET environment variable");
-}
-
-server.use(express.json());
-server.use(
-    session({
-        secret: process.env.SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-    })
-);
-
-server.use(passport.initialize());
-server.use(passport.session());
-googleAuth(passport);
 
 // ************************** ENDPOINTS *****************************
 server.use("/users", usersRouter);
