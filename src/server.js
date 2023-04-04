@@ -32,7 +32,10 @@ const port = process.env.PORT || 3001;
 const io = new Server(app, {
     transports: ["websocket"],
     //eio4
-    origins: [process.env.FE_DEV_URL, process.env.FE_PROD_URL],
+    cors: {
+        origin:  [`${process.env.FE_DEV_URL}*`, `${process.env.FE_PROD_URL}*`]
+      }
+    // origins: [process.env.FE_DEV_URL, process.env.FE_PROD_URL],
 });
 
 io.on("connection", socketHandler);
